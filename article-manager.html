@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ArticleForge</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0f11;
+    --surface: #16181c;
+    --surface2: #1e2128;
+    --surface3: #262a33;
+    --border: #2e3340;
+    --text: #e8eaf0;
+    --text-muted: #6b7280;
+    --text-dim: #9ca3af;
+    --accent: #e8c97a;
+    --accent-dim: #b89a4a;
+    --en: #4a9eff;
+    --es: #ff6b6b;
+    --success: #4ade80;
+    --danger: #f87171;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+    --serif: 'Playfair Display', serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    height: 52px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .logo {
+    font-family: var(--serif);
+    font-size: 20px;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+  }
+  .logo span { color: var(--text-muted); font-size: 13px; font-family: var(--mono); margin-left: 10px; }
+  .header-actions { display: flex; gap: 10px; align-items: center; }
+
+  /* LAYOUT */
+  .app-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 280px;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .sidebar-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .sidebar-title {
+    font-size: 11px;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+  }
+  .article-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+  }
+  .article-item {
+    padding: 10px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    margin-bottom: 4px;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .article-item:hover { background: var(--surface2); border-color: var(--border); }
+  .article-item.active { background: var(--surface3); border-color: var(--accent-dim); }
+  .article-item-title {
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 6px;
+  }
+  .lang-badges {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+  }
+  .lang-badge {
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+  }
+  .lang-badge.has { background: rgba(74,222,128,0.12); color: var(--success); border: 1px solid rgba(74,222,128,0.2); }
+  .lang-badge.missing { background: rgba(248,113,113,0.1); color: var(--danger); border: 1px solid rgba(248,113,113,0.2); }
+  .article-checkbox {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 14px;
+    height: 14px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .sidebar-footer {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .selected-count {
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  /* MAIN EDITOR */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .editor-toolbar {
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .article-name-input {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--serif);
+    font-size: 17px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    outline: none;
+    width: 300px;
+    transition: border-color 0.15s;
+  }
+  .article-name-input:focus { border-color: var(--accent-dim); }
+  .article-name-input::placeholder { color: var(--text-muted); }
+  .spacer { flex: 1; }
+
+  /* LANG TABS */
+  .lang-tabs {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .lang-tab {
+    padding: 5px 14px;
+    font-size: 12px;
+    font-family: var(--mono);
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    letter-spacing: 0.06em;
+  }
+  .lang-tab:hover { background: var(--surface2); color: var(--text); }
+  .lang-tab.active-en { background: rgba(74,158,255,0.15); color: var(--en); }
+  .lang-tab.active-es { background: rgba(255,107,107,0.15); color: var(--es); }
+  .lang-tab + .lang-tab { border-left: 1px solid var(--border); }
+
+  /* VIEW MODE TOGGLE */
+  .view-toggle {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .view-btn {
+    padding: 5px 12px;
+    font-size: 11px;
+    font-family: var(--mono);
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    letter-spacing: 0.05em;
+  }
+  .view-btn:hover { background: var(--surface2); color: var(--text); }
+  .view-btn.active { background: var(--surface3); color: var(--accent); }
+  .view-btn + .view-btn { border-left: 1px solid var(--border); }
+
+  /* EDITOR AREA */
+  .editor-body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+  }
+  .editor-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .editor-pane.hidden { display: none; }
+
+  .lang-indicator {
+    padding: 6px 20px;
+    font-size: 10px;
+    font-family: var(--mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .lang-indicator .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .lang-indicator.en-ind { color: var(--en); background: rgba(74,158,255,0.04); }
+  .lang-indicator.es-ind { color: var(--es); background: rgba(255,107,107,0.04); }
+  .lang-indicator .dot.en { background: var(--en); }
+  .lang-indicator .dot.es { background: var(--es); }
+
+  .copy-btn-inline {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    transition: all 0.15s;
+    letter-spacing: 0.05em;
+  }
+  .copy-btn-inline:hover { border-color: var(--accent-dim); color: var(--accent); }
+  .copy-btn-inline:disabled { opacity: 0.3; cursor: not-allowed; }
+  .copy-btn-inline.en-copy { color: var(--en); border-color: rgba(74,158,255,0.3); }
+  .copy-btn-inline.es-copy { color: var(--es); border-color: rgba(255,107,107,0.3); }
+
+  .html-textarea {
+    flex: 1;
+    background: var(--bg);
+    color: #a8d8a8;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    border: none;
+    outline: none;
+    padding: 20px;
+    resize: none;
+    tab-size: 2;
+  }
+  .html-textarea::placeholder { color: var(--text-muted); font-size: 13px; }
+
+  .preview-frame {
+    flex: 1;
+    border: none;
+    overflow-y: auto;
+    background: white;
+    padding: 32px 48px;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 16px;
+    line-height: 1.75;
+    color: #1a1a1a;
+    outline: none;
+    cursor: text;
+  }
+  .preview-frame:empty::before {
+    content: 'No content yet — start typing or switch to Code view to add HTML.';
+    color: #aaa;
+    font-style: italic;
+    pointer-events: none;
+  }
+  .preview-frame h1, .preview-frame h2, .preview-frame h3,
+  .preview-frame h4, .preview-frame h5, .preview-frame h6 { line-height: 1.3; margin: 1em 0 0.4em; }
+  .preview-frame p { margin-bottom: 1em; }
+  .preview-frame a { color: #2563eb; }
+  .preview-frame ul, .preview-frame ol { padding-left: 1.5em; margin-bottom: 1em; }
+  .preview-frame blockquote { border-left: 3px solid #ddd; margin: 1em 0; padding: 0.5em 1em; color: #555; font-style: italic; }
+  .preview-frame code { font-family: monospace; background: #f3f4f6; padding: 1px 4px; border-radius: 3px; font-size: 0.9em; }
+  .preview-frame pre { background: #f3f4f6; padding: 12px 16px; border-radius: 6px; overflow-x: auto; margin-bottom: 1em; }
+  .preview-frame img { max-width: 100%; }
+
+  /* Vertical split for side-by-side */
+  .split-panes {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+  .split-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-right: 1px solid var(--border);
+  }
+  .split-pane:last-child { border-right: none; }
+
+  /* EMPTY STATE */
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    color: var(--text-muted);
+  }
+  .empty-state-icon { font-size: 48px; opacity: 0.3; }
+  .empty-state h2 { font-family: var(--serif); font-size: 22px; color: var(--text-dim); }
+  .empty-state p { font-size: 13px; max-width: 260px; text-align: center; line-height: 1.6; }
+
+  /* BUTTONS */
+  .btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #111;
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  .btn-primary:hover { background: var(--accent-dim); border-color: var(--accent-dim); }
+  .btn-secondary {
+    background: transparent;
+    color: var(--text-dim);
+    border-color: var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--text-muted); color: var(--text); }
+  .btn-danger {
+    background: transparent;
+    color: var(--danger);
+    border-color: rgba(248,113,113,0.3);
+  }
+  .btn-danger:hover { background: rgba(248,113,113,0.1); }
+  .btn-export {
+    background: rgba(74,222,128,0.1);
+    color: var(--success);
+    border-color: rgba(74,222,128,0.3);
+  }
+  .btn-export:hover { background: rgba(74,222,128,0.18); }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+    animation: fadeIn 0.15s ease;
+  }
+  .modal-overlay.hidden { display: none; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px;
+    width: 440px;
+    max-width: 90vw;
+    animation: slideUp 0.2s ease;
+  }
+  .modal h3 { font-family: var(--serif); font-size: 20px; margin-bottom: 8px; }
+  .modal p { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.6; }
+  .modal input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    padding: 9px 12px;
+    border-radius: 5px;
+    outline: none;
+    margin-bottom: 16px;
+  }
+  .modal input:focus { border-color: var(--accent-dim); }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* EXPORT MODAL */
+  .export-list { max-height: 300px; overflow-y: auto; margin-bottom: 16px; }
+  .export-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .export-item:hover { background: var(--surface2); }
+  .export-item input[type=checkbox] { accent-color: var(--accent); width: 14px; height: 14px; }
+  .export-item-title { font-size: 13px; flex: 1; }
+  .export-lang-sel {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    align-items: center;
+  }
+  .export-lang-sel label { font-size: 12px; font-family: var(--mono); color: var(--text-muted); }
+  .export-lang-sel select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    outline: none;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  /* Scrollbars */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border); }
+
+  .missing-tag {
+    font-size: 10px;
+    font-family: var(--mono);
+    color: var(--danger);
+    background: rgba(248,113,113,0.1);
+    border: 1px solid rgba(248,113,113,0.2);
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-left: 6px;
+  }
+  .status-bar {
+    padding: 4px 20px;
+    font-size: 10px;
+    font-family: var(--mono);
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 20px;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+  .status-bar span { display: flex; align-items: center; gap: 5px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">ArticleForge <span>// content management</span></div>
+  <div class="header-actions">
+    <button class="btn btn-export" id="exportBtn" disabled>⬇ Export Selected</button>
+    <button class="btn btn-primary" id="newArticleBtn">+ New Article</button>
+  </div>
+</header>
+
+<!-- BODY -->
+<div class="app-body">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-title">Articles</span>
+      <span id="articleCount" style="font-family:var(--mono);font-size:11px;color:var(--text-muted)">0</span>
+    </div>
+    <div class="article-list" id="articleList"></div>
+    <div class="sidebar-footer">
+      <div class="selected-count" id="selectedCount">0 selected for export</div>
+      <button class="btn btn-danger" id="deleteBtn" disabled>✕ Delete Article</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main" id="mainArea">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-state-icon">📄</div>
+      <h2>No article open</h2>
+      <p>Select an article from the sidebar or create a new one to get started.</p>
+    </div>
+  </main>
+</div>
+
+<!-- STATUS BAR -->
+<div class="status-bar">
+  <span id="statusLang"></span>
+  <span id="statusChars"></span>
+  <span id="statusMissing"></span>
+</div>
+
+<!-- NEW ARTICLE MODAL -->
+<div class="modal-overlay hidden" id="newModal">
+  <div class="modal">
+    <h3>New Article</h3>
+    <p>Give your article a name. You can add HTML content for English and Spanish after creating it.</p>
+    <input type="text" id="newArticleName" placeholder="Article title…" maxlength="80">
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="newModalCancel">Cancel</button>
+      <button class="btn btn-primary" id="newModalCreate">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT MODAL -->
+<div class="modal-overlay hidden" id="exportModal">
+  <div class="modal" style="width:520px">
+    <h3>Export Articles</h3>
+    <p>Choose a language and which articles to include. A single combined HTML document will be generated.</p>
+    <div class="export-lang-sel">
+      <label>Language:</label>
+      <select id="exportLang">
+        <option value="en">English (EN)</option>
+        <option value="es">Spanish (ES)</option>
+        <option value="both">Both languages</option>
+      </select>
+    </div>
+    <div class="export-list" id="exportList"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="exportCancel">Cancel</button>
+      <button class="btn btn-export" id="exportConfirm">⬇ Download</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ──────────────────────────────────────────────────────────────────
+let articles = JSON.parse(localStorage.getItem('af_articles') || '[]');
+let currentId = null;
+let activeLang = 'en';
+let viewMode = 'code'; // 'code' | 'preview' | 'split'
+
+function save() {
+  localStorage.setItem('af_articles', JSON.stringify(articles));
+}
+function getId() {
+  return 'a' + Date.now() + Math.random().toString(36).slice(2,6);
+}
+function getArticle(id) {
+  return articles.find(a => a.id === id);
+}
+
+// ─── SIDEBAR ────────────────────────────────────────────────────────────────
+function renderSidebar() {
+  const list = document.getElementById('articleList');
+  const count = document.getElementById('articleCount');
+  count.textContent = articles.length;
+  list.innerHTML = '';
+
+  if (articles.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:32px 12px;font-size:12px;color:var(--text-muted);line-height:1.7">No articles yet.<br>Click <b style="color:var(--accent)">+ New Article</b> to begin.</div>';
+    return;
+  }
+
+  articles.forEach(a => {
+    const item = document.createElement('div');
+    item.className = 'article-item' + (a.id === currentId ? ' active' : '');
+    const enHas = a.en && a.en.trim();
+    const esHas = a.es && a.es.trim();
+    item.innerHTML = `
+      <div class="article-item-title">${escHtml(a.name)}</div>
+      <div class="lang-badges">
+        <span class="lang-badge ${enHas ? 'has' : 'missing'}">EN</span>
+        <span class="lang-badge ${esHas ? 'has' : 'missing'}">ES</span>
+        ${!enHas || !esHas ? '<span style="font-size:9px;font-family:var(--mono);color:var(--danger);margin-left:2px">missing</span>' : ''}
+      </div>
+      <input type="checkbox" class="article-checkbox" data-id="${a.id}" ${a.selected ? 'checked' : ''} title="Select for export">
+    `;
+    item.addEventListener('click', (e) => {
+      if (e.target.type === 'checkbox') return;
+      openArticle(a.id);
+    });
+    item.querySelector('.article-checkbox').addEventListener('change', (e) => {
+      a.selected = e.target.checked;
+      save();
+      updateSelectedCount();
+    });
+    list.appendChild(item);
+  });
+  updateSelectedCount();
+}
+
+function updateSelectedCount() {
+  const sel = articles.filter(a => a.selected).length;
+  document.getElementById('selectedCount').textContent = sel + ' selected for export';
+  document.getElementById('exportBtn').disabled = sel === 0;
+}
+
+// ─── OPEN ARTICLE ───────────────────────────────────────────────────────────
+function openArticle(id) {
+  currentId = id;
+  const a = getArticle(id);
+  renderSidebar();
+  renderEditor(a);
+  document.getElementById('deleteBtn').disabled = false;
+  document.getElementById('emptyState') && renderEditor(a);
+}
+
+function renderEditor(a) {
+  const main = document.getElementById('mainArea');
+  main.innerHTML = `
+    <div class="editor-toolbar">
+      <input class="article-name-input" id="nameInput" value="${escAttr(a.name)}" placeholder="Article title…" maxlength="80">
+      <div class="spacer"></div>
+      <div class="lang-tabs">
+        <button class="lang-tab ${activeLang==='en'?'active-en':''}" data-lang="en">EN</button>
+        <button class="lang-tab ${activeLang==='es'?'active-es':''}" data-lang="es">ES</button>
+      </div>
+      <div class="view-toggle">
+        <button class="view-btn ${viewMode==='code'?'active':''}" data-view="code">Code</button>
+        <button class="view-btn ${viewMode==='preview'?'active':''}" data-view="preview">Preview</button>
+        <button class="view-btn ${viewMode==='split'?'active':''}" data-view="split">Split</button>
+      </div>
+    </div>
+    <div class="editor-body" id="editorBody"></div>
+  `;
+
+  document.getElementById('nameInput').addEventListener('input', (e) => {
+    a.name = e.target.value;
+    save();
+    renderSidebar();
+  });
+  document.querySelectorAll('.lang-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeLang = btn.dataset.lang;
+      renderEditor(a);
+    });
+  });
+  document.querySelectorAll('.view-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      viewMode = btn.dataset.view;
+      renderEditor(a);
+    });
+  });
+
+  renderEditorBody(a);
+  loadPreviewIframes(a);
+  updateStatusBar(a);
+}
+
+function loadPreviewIframes(a) {
+  ['en', 'es'].forEach(lang => {
+    const div = document.getElementById(`preview_${lang}`);
+    if (!div) return;
+    // Set rendered HTML as content
+    div.innerHTML = a[lang] || '';
+    // Sync edits back to article data
+    div.addEventListener('input', () => {
+      a[lang] = div.innerHTML;
+      save();
+      renderSidebar();
+      updateStatusBar(a);
+    });
+  });
+}
+
+function renderEditorBody(a) {
+  const body = document.getElementById('editorBody');
+  if (!body) return;
+
+  if (viewMode === 'split') {
+    body.innerHTML = `
+      <div class="split-panes">
+        ${langPane(a, 'en')}
+        ${langPane(a, 'es')}
+      </div>`;
+    attachPaneEvents(a, 'en');
+    attachPaneEvents(a, 'es');
+  } else {
+    body.innerHTML = `
+      <div class="editor-pane">
+        ${langPane(a, activeLang)}
+      </div>`;
+    attachPaneEvents(a, activeLang);
+  }
+}
+
+function langPane(a, lang) {
+  const other = lang === 'en' ? 'es' : 'en';
+  const content = a[lang] || '';
+  const otherContent = a[other] || '';
+  const canCopy = !content.trim() && otherContent.trim();
+
+  if (viewMode === 'preview') {
+    return `
+      <div class="lang-indicator ${lang}-ind"><div class="dot ${lang}"></div>${lang === 'en' ? 'English' : 'Spanish'}<span style="margin-left:auto;font-size:9px;opacity:0.5">editable</span></div>
+      <div class="preview-frame" id="preview_${lang}" contenteditable="true" spellcheck="true"></div>
+    `;
+  }
+
+  const isPreviewInSplit = viewMode === 'split';
+  return `
+    <div class="split-pane" id="pane_${lang}">
+      <div class="lang-indicator ${lang}-ind">
+        <div class="dot ${lang}"></div>
+        ${lang === 'en' ? 'English' : 'Spanish'}
+        ${!content.trim() ? '<span style="font-size:9px;color:var(--danger);margin-left:6px;font-family:var(--mono)">● EMPTY</span>' : ''}
+        <button class="copy-btn-inline ${lang}-copy" id="copyBtn_${lang}" ${canCopy?'':'disabled'} title="Copy ${other.toUpperCase()} content here">
+          ← Copy from ${other.toUpperCase()}
+        </button>
+      </div>
+      <textarea class="html-textarea" id="ta_${lang}" placeholder="Paste or write HTML for ${lang === 'en' ? 'English' : 'Spanish'} content here…">${escHtml(content)}</textarea>
+    </div>
+  `;
+}
+
+function attachPaneEvents(a, lang) {
+  const ta = document.getElementById(`ta_${lang}`);
+  if (!ta) return;
+  ta.addEventListener('input', () => {
+    a[lang] = ta.value;
+    save();
+    renderSidebar();
+    updateStatusBar(a);
+    // update copy button state
+    const other = lang === 'en' ? 'es' : 'en';
+    const otherBtn = document.getElementById(`copyBtn_${other}`);
+    if (otherBtn) {
+      const otherContent = a[other] || '';
+      otherBtn.disabled = !(!otherContent.trim() && a[lang].trim());
+    }
+  });
+  const copyBtn = document.getElementById(`copyBtn_${lang}`);
+  if (copyBtn) {
+    copyBtn.addEventListener('click', () => {
+      const other = lang === 'en' ? 'es' : 'en';
+      a[lang] = a[other] || '';
+      save();
+      renderSidebar();
+      renderEditor(a);
+    });
+  }
+
+  // preview pane handling for split view
+  if (viewMode === 'split') {
+    // could do live preview in split; for now just code
+  }
+}
+
+function buildPreviewDoc(html) {
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Georgia,serif;max-width:800px;margin:32px auto;padding:0 24px;line-height:1.7;color:#222;}h1,h2,h3{line-height:1.3;}</style></head><body>${html}</body></html>`;
+}
+
+function updateStatusBar(a) {
+  const en = (a.en||'').trim();
+  const es = (a.es||'').trim();
+  const missing = [];
+  if (!en) missing.push('EN');
+  if (!es) missing.push('ES');
+  document.getElementById('statusLang').textContent = 'editing: ' + (activeLang === 'en' ? 'English' : 'Spanish');
+  document.getElementById('statusChars').textContent = 'chars: ' + (a[activeLang]||'').length;
+  document.getElementById('statusMissing').textContent = missing.length ? '⚠ missing: ' + missing.join(', ') : '✓ all languages present';
+}
+
+// ─── MODALS ─────────────────────────────────────────────────────────────────
+document.getElementById('newArticleBtn').addEventListener('click', () => {
+  document.getElementById('newModal').classList.remove('hidden');
+  document.getElementById('newArticleName').value = '';
+  setTimeout(() => document.getElementById('newArticleName').focus(), 50);
+});
+document.getElementById('newModalCancel').addEventListener('click', () => {
+  document.getElementById('newModal').classList.add('hidden');
+});
+document.getElementById('newModalCreate').addEventListener('click', createArticle);
+document.getElementById('newArticleName').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') createArticle();
+  if (e.key === 'Escape') document.getElementById('newModal').classList.add('hidden');
+});
+
+function createArticle() {
+  const name = document.getElementById('newArticleName').value.trim();
+  if (!name) return;
+  const a = { id: getId(), name, en: '', es: '', selected: false };
+  articles.push(a);
+  save();
+  document.getElementById('newModal').classList.add('hidden');
+  openArticle(a.id);
+  document.getElementById('emptyState')?.remove();
+}
+
+document.getElementById('deleteBtn').addEventListener('click', () => {
+  if (!currentId) return;
+  const a = getArticle(currentId);
+  if (!confirm(`Delete "${a.name}"? This cannot be undone.`)) return;
+  articles = articles.filter(x => x.id !== currentId);
+  currentId = null;
+  save();
+  renderSidebar();
+  document.getElementById('mainArea').innerHTML = `
+    <div class="empty-state" id="emptyState">
+      <div class="empty-state-icon">📄</div>
+      <h2>No article open</h2>
+      <p>Select an article from the sidebar or create a new one to get started.</p>
+    </div>`;
+  document.getElementById('deleteBtn').disabled = true;
+  document.getElementById('statusLang').textContent = '';
+  document.getElementById('statusChars').textContent = '';
+  document.getElementById('statusMissing').textContent = '';
+});
+
+// ─── EXPORT ─────────────────────────────────────────────────────────────────
+document.getElementById('exportBtn').addEventListener('click', openExportModal);
+
+function openExportModal() {
+  const selected = articles.filter(a => a.selected);
+  const list = document.getElementById('exportList');
+  list.innerHTML = '';
+  selected.forEach(a => {
+    const item = document.createElement('div');
+    item.className = 'export-item';
+    const enHas = a.en && a.en.trim();
+    const esHas = a.es && a.es.trim();
+    item.innerHTML = `
+      <input type="checkbox" checked data-id="${a.id}">
+      <span class="export-item-title">${escHtml(a.name)}</span>
+      <span class="lang-badge ${enHas?'has':'missing'}">EN</span>
+      <span class="lang-badge ${esHas?'has':'missing'}">ES</span>
+    `;
+    list.appendChild(item);
+  });
+  document.getElementById('exportModal').classList.remove('hidden');
+}
+
+document.getElementById('exportCancel').addEventListener('click', () => {
+  document.getElementById('exportModal').classList.add('hidden');
+});
+
+document.getElementById('exportConfirm').addEventListener('click', async () => {
+  const lang = document.getElementById('exportLang').value;
+  const checked = [...document.querySelectorAll('#exportList input[type=checkbox]:checked')].map(x => x.dataset.id);
+  const toExport = articles.filter(a => checked.includes(a.id));
+  if (!toExport.length) { alert('No articles selected.'); return; }
+
+  let body = '';
+  toExport.forEach((a, i) => {
+    body += `<article class="af-article" id="article-${i+1}">\n  <h1 class="af-article-title">${escHtml(a.name)}</h1>\n`;
+    if (lang === 'en' || lang === 'both') {
+      body += `  <div class="af-lang-block af-en">\n`;
+      if (lang === 'both') body += `    <div class="af-lang-label">English</div>\n`;
+      body += `    ${a.en || '<p><em>(No English content)</em></p>'}\n  </div>\n`;
+    }
+    if (lang === 'es' || lang === 'both') {
+      body += `  <div class="af-lang-block af-es">\n`;
+      if (lang === 'both') body += `    <div class="af-lang-label">Español</div>\n`;
+      body += `    ${a.es || '<p><em>(No Spanish content)</em></p>'}\n  </div>\n`;
+    }
+    body += `</article>\n\n`;
+  });
+
+  const langLabel = lang === 'en' ? 'English' : lang === 'es' ? 'Spanish' : 'Bilingual';
+  const html = `<!DOCTYPE html>
+<html lang="${lang === 'es' ? 'es' : 'en'}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exported Articles — ${langLabel}</title>
+  <style>
+    body { font-family: Georgia, 'Times New Roman', serif; max-width: 860px; margin: 0 auto; padding: 48px 32px; color: #1a1a1a; background: #fafaf8; line-height: 1.75; }
+    h1 { font-size: 2em; line-height: 1.2; }
+    .af-article { border-top: 2px solid #1a1a1a; padding: 48px 0; }
+    .af-article:first-child { border-top: none; padding-top: 0; }
+    .af-article-title { font-size: 1.8em; margin-bottom: 24px; }
+    .af-lang-label { font-family: monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: #888; margin-bottom: 12px; padding: 3px 8px; border: 1px solid #ddd; display: inline-block; border-radius: 3px; }
+    .af-lang-block + .af-lang-block { margin-top: 32px; padding-top: 32px; border-top: 1px dashed #ccc; }
+    h2, h3, h4 { margin-top: 1.5em; margin-bottom: 0.5em; }
+    p { margin-bottom: 1em; }
+    .af-meta { font-family: monospace; font-size: 12px; color: #aaa; margin-bottom: 48px; padding-bottom: 24px; border-bottom: 1px solid #eee; }
+  </style>
+</head>
+<body>
+  <div class="af-meta">Exported from ArticleForge · ${toExport.length} article(s) · ${langLabel} · ${new Date().toLocaleDateString()}</div>
+  ${body}
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html' });
+  const filename = `articles-export-${lang}-${Date.now()}.html`;
+
+  // Try modern File System Access API first (works even from local files)
+  if (window.showSaveFilePicker) {
+    try {
+      const fh = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{ description: 'HTML File', accept: { 'text/html': ['.html'] } }]
+      });
+      const writable = await fh.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      document.getElementById('exportModal').classList.add('hidden');
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') { return; } // user cancelled
+      // fall through to legacy method
+    }
+  }
+
+  // Legacy fallback: data URI (avoids blob URL CSP issues in local file context)
+  const reader = new FileReader();
+  reader.onload = () => {
+    const a2 = document.createElement('a');
+    a2.href = reader.result;
+    a2.download = filename;
+    document.body.appendChild(a2);
+    a2.click();
+    document.body.removeChild(a2);
+  };
+  reader.readAsDataURL(blob);
+  document.getElementById('exportModal').classList.add('hidden');
+});
+
+// ─── UTILS ──────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ─── INIT ───────────────────────────────────────────────────────────────────
+renderSidebar();
+</script>
+</body>
+</html>
