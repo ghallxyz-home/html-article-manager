@@ -502,6 +502,7 @@
 <header>
   <div class="logo">ArticleForge <span>// content management</span></div>
   <div class="header-actions">
+    <button class="btn btn-secondary" id="fileStatus" title="Connect or create a JSON data file">📂 Connect data file</button>
     <button class="btn btn-export" id="exportBtn" disabled>⬇ Export Selected</button>
     <button class="btn btn-primary" id="newArticleBtn">+ New Article</button>
   </div>
@@ -580,10 +581,130 @@ let articles = JSON.parse(localStorage.getItem('af_articles') || '[]');
 let currentId = null;
 let activeLang = 'en';
 let viewMode = 'code'; // 'code' | 'preview' | 'split'
+let fileHandle = null;
 
 function save() {
   localStorage.setItem('af_articles', JSON.stringify(articles));
+  writeToFile();
 }
+
+// ─── FILE PERSISTENCE ────────────────────────────────────────────────────────
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('ArticleForge', 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore('handles');
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = reject;
+  });
+}
+
+async function persistHandle(fh) {
+  try {
+    const db = await openDB();
+    const tx = db.transaction('handles', 'readwrite');
+    tx.objectStore('handles').put(fh, 'dataFile');
+  } catch(e) {}
+}
+
+async function getPersistedHandle() {
+  try {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction('handles', 'readonly');
+      const req = tx.objectStore('handles').get('dataFile');
+      req.onsuccess = e => resolve(e.target.result || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch(e) { return null; }
+}
+
+async function writeToFile() {
+  if (!fileHandle) return;
+  try {
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(articles, null, 2));
+    await writable.close();
+  } catch(e) {
+    console.warn('File write failed:', e);
+  }
+}
+
+async function loadFromHandle(fh) {
+  const file = await fh.getFile();
+  const text = await file.text();
+  const data = JSON.parse(text);
+  if (Array.isArray(data)) {
+    articles = data;
+    localStorage.setItem('af_articles', JSON.stringify(articles));
+    currentId = null;
+    renderSidebar();
+    document.getElementById('mainArea').innerHTML = `
+      <div class="empty-state" id="emptyState">
+        <div class="empty-state-icon">📄</div>
+        <h2>No article open</h2>
+        <p>Select an article from the sidebar or create a new one to get started.</p>
+      </div>`;
+    document.getElementById('deleteBtn').disabled = true;
+    document.getElementById('statusLang').textContent = '';
+    document.getElementById('statusChars').textContent = '';
+    document.getElementById('statusMissing').textContent = '';
+  }
+}
+
+function updateFileStatus() {
+  const el = document.getElementById('fileStatus');
+  if (!el) return;
+  if (fileHandle) {
+    el.textContent = '📄 ' + fileHandle.name;
+    el.title = 'Connected to ' + fileHandle.name + '. Click to switch file.';
+    el.style.color = 'var(--success)';
+  } else {
+    el.textContent = '📂 Connect data file';
+    el.title = 'Click to open an existing articles.json or create a new one';
+    el.style.color = '';
+  }
+}
+
+document.getElementById('fileStatus').addEventListener('click', async () => {
+  if (!window.showOpenFilePicker) {
+    alert('File System Access API is not supported in this browser. Try Chrome or Edge.');
+    return;
+  }
+  // Offer to open existing or create new
+  const choice = articles.length > 0
+    ? confirm('Open an existing articles.json file?\n\nOK = Open existing file\nCancel = Create a new file (will save current articles)')
+    : true;
+
+  if (choice) {
+    // Open existing
+    try {
+      const [fh] = await window.showOpenFilePicker({
+        types: [{ description: 'JSON Data File', accept: { 'application/json': ['.json'] } }],
+        multiple: false
+      });
+      fileHandle = fh;
+      await persistHandle(fh);
+      await loadFromHandle(fh);
+      updateFileStatus();
+    } catch(e) {
+      if (e.name !== 'AbortError') console.warn(e);
+    }
+  } else {
+    // Create new
+    try {
+      const fh = await window.showSaveFilePicker({
+        suggestedName: 'articles.json',
+        types: [{ description: 'JSON Data File', accept: { 'application/json': ['.json'] } }]
+      });
+      fileHandle = fh;
+      await persistHandle(fh);
+      await writeToFile();
+      updateFileStatus();
+    } catch(e) {
+      if (e.name !== 'AbortError') console.warn(e);
+    }
+  }
+});
 function getId() {
   return 'a' + Date.now() + Math.random().toString(36).slice(2,6);
 }
@@ -969,6 +1090,40 @@ function escAttr(s) {
 
 // ─── INIT ───────────────────────────────────────────────────────────────────
 renderSidebar();
+
+// Try to restore file handle from previous session
+(async () => {
+  if (!window.showOpenFilePicker) { updateFileStatus(); return; }
+  const fh = await getPersistedHandle();
+  if (!fh) { updateFileStatus(); return; }
+  try {
+    const perm = await fh.queryPermission({ mode: 'readwrite' });
+    if (perm === 'granted') {
+      fileHandle = fh;
+      await loadFromHandle(fh);
+    } else if (perm === 'prompt') {
+      // Show a reconnect prompt in the status button
+      fileHandle = fh; // hold handle, permission will be requested on first write
+      const el = document.getElementById('fileStatus');
+      if (el) {
+        el.textContent = '🔄 Reconnect: ' + fh.name;
+        el.title = 'Click to reconnect to ' + fh.name;
+        el.style.color = 'var(--accent)';
+        // On click, request permission and load
+        el.addEventListener('click', async () => {
+          const p = await fh.requestPermission({ mode: 'readwrite' });
+          if (p === 'granted') {
+            fileHandle = fh;
+            await loadFromHandle(fh);
+            updateFileStatus();
+          }
+        }, { once: true });
+        return;
+      }
+    }
+  } catch(e) {}
+  updateFileStatus();
+})();
 </script>
 </body>
 </html>
